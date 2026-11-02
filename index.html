@@ -1,0 +1,334 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta name="theme-color" content="#133f48">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="かんたん集計">
+  <title>かんたん集計</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #162e36;
+      --muted: #617980;
+      --main: #157e86;
+      --main-dark: #12616a;
+      --paper: #ffffff;
+      --line: #dae5e8;
+      --base: #edf3f3;
+      --pad: #e4ecee;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif;
+      color: var(--ink);
+      background: #dce8e8;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    button { font: inherit; touch-action: manipulation; cursor: pointer; }
+    button:focus-visible, .data-row:focus-visible { outline: 3px solid #ffbc57; outline-offset: 2px; }
+    .app {
+      margin: 0 auto;
+      max-width: 560px;
+      height: 100vh;
+      height: 100dvh;
+      min-height: 420px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--base);
+      box-shadow: 0 0 45px #193d4520;
+    }
+    .top {
+      flex: 0 0 auto;
+      background: #133f48;
+      padding: calc(var(--safe-top) + 14px) 18px 17px;
+      color: #fff;
+      border-radius: 0 0 22px 22px;
+      z-index: 1;
+    }
+    .name-field { display:flex; flex-direction:column; gap:6px; margin:0 2px 14px; }
+    .name-field input {
+      width:100%; min-height:42px; padding:8px 12px; border:1px solid #6b969b;
+      border-radius:9px; color:#fff; background:#ffffff1c; font:inherit;
+      font-size:16px; font-weight:600; outline:none; user-select:text; -webkit-user-select:text;
+    }
+    .name-field input::placeholder { color:#b5d0d2; font-weight:400; }
+    .name-field input:focus { border-color:#bcebe5; box-shadow:0 0 0 2px #bcebe544; }
+    .total-card { padding: 0 2px; }
+    .total-label { font-size: 12px; font-weight: 600; letter-spacing: .1em; color:#b8d7d8; }
+    .total-number {
+      margin: 4px 0 8px;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(34px, 10vw, 52px);
+      line-height: 1.11;
+      letter-spacing: -.035em;
+      overflow-wrap: anywhere;
+      user-select: text; -webkit-user-select: text;
+    }
+    .total-meta { display:flex; align-items:center; gap: 9px; flex-wrap:wrap; }
+    .count-chip {
+      display: inline-flex; align-items:center; gap: 5px; padding:5px 9px;
+      font-size:11px; font-weight:700; border:1px solid #93bdc075;
+      background:#ffffff18; border-radius:7px;
+    }
+    .sheet { min-height: 0; display:flex; flex: 1 1 auto; flex-direction: column; padding: 13px 14px 0; }
+    .sheet-caption { display:flex; align-items:center; justify-content:space-between; margin: 0 3px 9px; }
+    .sheet-title {font-weight:800; font-size:13px; letter-spacing:.025em;}
+    .sheet-sub {font-size:10px; color:var(--muted);}
+    .sheet-panel { min-height:0; background:var(--paper); border:1px solid var(--line); border-radius:14px 14px 0 0; display:flex; flex-direction:column; overflow:hidden; }
+    .sheet-head {flex:0 0 auto; display:grid; grid-template-columns: 57px minmax(0, 1fr); min-height:34px; align-items:center; background:#f2f7f7; border-bottom:1px solid var(--line); color:#5d777e; font-size:11px; font-weight:750;}
+    .sheet-head span:first-child {text-align:center; border-right:1px solid var(--line); height:100%; display:grid; place-items:center;}
+    .sheet-head span:last-child {padding-left:14px;}
+    .sheet-scroll {flex: 1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; scrollbar-width:thin;}
+    .data-row { display:grid; grid-template-columns:57px minmax(0,1fr); align-items:stretch; min-height:54px; border-bottom:1px solid #e7eeee; cursor:pointer; outline:none; }
+    .row-number {display:flex; align-items:center; justify-content:center; border-right:1px solid #e7eeee; color:#728a90; background:#fafcfc; font-variant-numeric:tabular-nums; font-size:13px; font-weight:650; }
+    .entry-input { display:block; width:100%; min-width:0; padding: 0 14px; height:54px; border:0; outline:0; color:#1b353c; background:transparent; text-align:right; font-size:25px; font-weight:650; letter-spacing:.025em; font-variant-numeric:tabular-nums; text-overflow:clip; caret-color:transparent; pointer-events:none; }
+    .entry-input::placeholder {color:#b9c8ca; font-size:13px; font-weight:500; letter-spacing:0;}
+    .data-row.active {background:#e9f8f6; box-shadow:inset 4px 0 0 var(--main);}
+    .data-row.active .row-number { color:#116c75; background:#d8efed; font-weight:850; }
+    .data-row.active .entry-input { color:#075e68; }
+    .data-row.active .entry-input::placeholder { color:#669ca1; }
+    .pad-wrap { flex:0 0 auto; background:var(--pad); border-top:1px solid #cbdcde; padding: 9px 12px calc(var(--safe-bottom) + 10px); box-shadow:0 -5px 15px #0c263007; }
+    .pad-head {display:flex; justify-content:space-between; align-items:center; gap:7px; padding: 0 2px 8px;}
+    .pad-head strong {color:#0d717a;}
+    .pad-selected {font-size:12px; font-weight:700;}
+    .pad-help {font-size:10px; color:#617b82;}
+    .keypad { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; }
+    .key {
+      width:100%; height: clamp(51px, 7.6vh, 66px);
+      min-height: 0; padding:0 3px;
+      border: 1px solid #d4e1e3; border-bottom: 2px solid #c3d2d5;
+      border-radius:11px; color:#1b353c; background:#fff;
+      font-size:25px; font-weight:650; font-variant-numeric:tabular-nums;
+      box-shadow:0 1px 1px #234a5308;
+    }
+    .key:active {transform:translateY(1px); background:#d9f0ed; border-bottom-width:1px;}
+    .key.action {background:#d2e3e5; border-color:#c4d9dc; border-bottom-color:#b3cacc; font-size:12px; font-weight:800;}
+    .key.action .arrow {display:block; line-height:1.12; font-size:21px;}
+    .key.clear {background:#ffe8e0; border-color:#f4d1c6; border-bottom-color:#e9bdb0; color:#b54e30; font-size:13px; font-weight:800;}
+    .key.zero {grid-column:span 2;}
+    .key.next { background:var(--main); border-color:var(--main-dark); border-bottom-color:#104e54; color:#fff; font-size:14px; font-weight:850; }
+    .key.next:active {background:var(--main-dark);}
+    .key.next span {display:block; font-size:11px; line-height:1; opacity:.9;}
+    .toast {position:fixed; z-index:10; left:50%; bottom:calc(var(--safe-bottom) + 330px); transform:translateX(-50%); pointer-events:none; max-width:85vw; padding:10px 14px; color:#fff; background:#283d43; border-radius:10px; font-size:12px; font-weight:700; box-shadow:0 6px 20px #0003; opacity:0; transition:opacity .18s;}
+    .toast.show {opacity:1;}
+    @media (max-height: 650px) {
+      .top {padding-top:calc(var(--safe-top) + 8px); padding-bottom:10px;}
+      .name-field {margin-bottom:9px; gap:4px;}
+      .name-field input {min-height:38px; padding:6px 10px;}
+      .total-number {font-size:34px; margin:3px 0 4px;}
+      .sheet {padding-top:8px;}
+      .sheet-caption {margin-bottom:5px;}
+      .key {height:49px;}
+      .pad-wrap {padding-top:6px; padding-bottom:calc(var(--safe-bottom) + 6px);}
+      .pad-head {padding-bottom:5px;}
+    }
+    @media (prefers-reduced-motion:reduce) { *, *::before, *::after {scroll-behavior:auto !important; transition:none !important;} }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="name-field">
+      <input id="itemName" type="text" aria-label="集計対象の名称" placeholder="名称を入力" autocomplete="off" enterkeyhint="done" maxlength="100">
+    </div>
+    <section class="total-card" aria-label="集計結果">
+      <div class="total-label">合計</div>
+      <div class="total-number" id="total" aria-live="polite" aria-atomic="true">0</div>
+      <div class="total-meta">
+        <span class="count-chip" id="count">入力 0 件</span>
+      </div>
+    </section>
+  </header>
+  <main class="sheet">
+    <div class="sheet-caption"><span class="sheet-title">入力一覧</span><span class="sheet-sub">タップで行を選択</span></div>
+    <div class="sheet-panel">
+      <div class="sheet-head"><span>番号</span><span>数値</span></div>
+      <div class="sheet-scroll" id="sheetScroll">
+        <div id="rows"></div>
+      </div>
+    </div>
+  </main>
+  <section class="pad-wrap" aria-label="数字入力用テンキー">
+    <div class="pad-head"><span class="pad-selected">選択中：<strong id="activeRow">1</strong> 行目</span><span class="pad-help">入力すると次の空欄を表示</span></div>
+    <div class="keypad" id="keypad">
+      <button class="key" type="button" data-digit="7">7</button>
+      <button class="key" type="button" data-digit="8">8</button>
+      <button class="key" type="button" data-digit="9">9</button>
+      <button class="key action" type="button" data-action="up" aria-label="1行上に移動"><span class="arrow">↑</span>上へ</button>
+      <button class="key" type="button" data-digit="4">4</button>
+      <button class="key" type="button" data-digit="5">5</button>
+      <button class="key" type="button" data-digit="6">6</button>
+      <button class="key action" type="button" data-action="down" aria-label="1行下に移動"><span class="arrow">↓</span>下へ</button>
+      <button class="key" type="button" data-digit="1">1</button>
+      <button class="key" type="button" data-digit="2">2</button>
+      <button class="key" type="button" data-digit="3">3</button>
+      <button class="key clear" type="button" data-action="clear">クリア</button>
+      <button class="key zero" type="button" data-digit="0">0</button>
+      <button class="key action" type="button" data-action="deleteRow" aria-label="選択中の行を削除"><span class="arrow">⌫</span>行削除</button>
+      <button class="key next" type="button" data-action="next">次へ<span>↵</span></button>
+    </div>
+  </section>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script>
+(() => {
+  'use strict';
+  const MAX_DIGITS = 18;
+  const rowsEl = document.getElementById('rows');
+  const scrollEl = document.getElementById('sheetScroll');
+  const totalEl = document.getElementById('total');
+  const countEl = document.getElementById('count');
+  const activeRowEl = document.getElementById('activeRow');
+  const toastEl = document.getElementById('toast');
+  let values = [''];
+  let selected = 0;
+  let toastTimer;
+
+  function commas(numberText) {
+    return numberText.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function showToast(message) {
+    toastEl.textContent = message;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1550);
+  }
+  function buildRow(index) {
+    const row = document.createElement('div');
+    row.className = 'data-row';
+    row.dataset.index = String(index);
+    row.setAttribute('role', 'button');
+    row.setAttribute('tabindex', '0');
+    row.setAttribute('aria-label', `${index + 1}行目を選択`);
+    const number = document.createElement('span');
+    number.className = 'row-number';
+    number.textContent = String(index + 1);
+    const input = document.createElement('input');
+    input.className = 'entry-input';
+    input.type = 'text';
+    input.readOnly = true;
+    input.inputMode = 'none';
+    input.tabIndex = -1;
+    input.setAttribute('aria-label', `${index + 1}行目の数値`);
+    row.append(number, input);
+    rowsEl.append(row);
+    updateRow(index);
+  }
+  function updateRow(index) {
+    const row = rowsEl.children[index];
+    if (!row) return;
+    const isActive = index === selected;
+    row.classList.toggle('active', isActive);
+    row.setAttribute('aria-pressed', String(isActive));
+    const input = row.querySelector('input');
+    input.value = values[index] ? commas(values[index]) : '';
+    input.placeholder = isActive ? '数字を入力' : '—';
+  }
+  function updateTotals() {
+    let sum = 0n;
+    let count = 0;
+    for (const val of values) {
+      if (val !== '') { sum += BigInt(val); count += 1; }
+    }
+    totalEl.textContent = commas(sum.toString());
+    countEl.textContent = `入力 ${count} 件`;
+    activeRowEl.textContent = String(selected + 1);
+  }
+  function showSelected() {
+    const row = rowsEl.children[selected];
+    if (!row) return;
+    const area = scrollEl.getBoundingClientRect();
+    const item = row.getBoundingClientRect();
+    if (item.bottom > area.bottom) scrollEl.scrollTop += item.bottom - area.bottom + 4;
+    else if (item.top < area.top) scrollEl.scrollTop -= area.top - item.top + 4;
+  }
+  function selectRow(index) {
+    if (index < 0) { showToast('これより上の行はありません'); return; }
+    if (index > values.length) return;
+    const previous = selected;
+    if (index === values.length) { values.push(''); buildRow(index); }
+    selected = index;
+    updateRow(previous);
+    updateRow(selected);
+    updateTotals();
+    requestAnimationFrame(showSelected);
+  }
+  function changeValue(nextValue) {
+    values[selected] = nextValue;
+    updateRow(selected);
+    updateTotals();
+    if (nextValue !== '' && selected === values.length - 1) {
+      values.push('');
+      buildRow(values.length - 1);
+    }
+  }
+  function addDigit(digit) {
+    const old = values[selected];
+    if (old.length >= MAX_DIGITS) { showToast('1行に入力できるのは18桁までです'); return; }
+    const nextValue = old === '0' ? (digit === '0' ? '0' : digit) : old + digit;
+    changeValue(nextValue);
+  }
+  function deleteSelectedRow() {
+    // 現在の行を丸ごと削除し、それ以降を詰める。末尾には入力用の空行を維持。
+    values.splice(selected, 1);
+    if (!values.length || values[values.length - 1] !== '') values.push('');
+    selected = Math.min(selected, values.length - 1);
+
+    // 行番号・選択行のARIAラベル・値を全て新しい順序で振り直す。
+    rowsEl.replaceChildren();
+    values.forEach((_, index) => buildRow(index));
+    updateTotals();
+    requestAnimationFrame(showSelected);
+  }
+  function handleAction(action) {
+    if (action === 'up') selectRow(selected - 1);
+    else if (action === 'down' || action === 'next') selectRow(selected + 1);
+    else if (action === 'clear') changeValue('');
+    else if (action === 'deleteRow') deleteSelectedRow();
+  }
+  document.getElementById('keypad').addEventListener('click', event => {
+    const key = event.target.closest('button');
+    if (!key) return;
+    if (key.dataset.digit !== undefined) addDigit(key.dataset.digit);
+    else handleAction(key.dataset.action);
+  });
+  rowsEl.addEventListener('click', event => {
+    const row = event.target.closest('.data-row');
+    if (row) selectRow(Number(row.dataset.index));
+  });
+  rowsEl.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const row = event.target.closest('.data-row');
+    if (row) { event.preventDefault(); event.stopPropagation(); selectRow(Number(row.dataset.index)); }
+  });
+  // PCでも動作確認できるよう、物理キーボードの数字・矢印・Enterに対応。
+  document.addEventListener('keydown', event => {
+    // 名称欄を編集している間は数字や削除キーを集計用操作として扱わない。
+    if (event.target instanceof Element && event.target.closest('input:not([readonly]), textarea, [contenteditable="true"]')) return;
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (/^[0-9]$/.test(event.key)) { event.preventDefault(); addDigit(event.key); }
+    else if (event.key === 'ArrowUp') { event.preventDefault(); handleAction('up'); }
+    else if (event.key === 'ArrowDown' || event.key === 'Enter') { event.preventDefault(); handleAction('next'); }
+    else if (event.key === 'Backspace') { event.preventDefault(); handleAction('deleteRow'); }
+    else if (event.key === 'Delete' || event.key === 'Escape') { event.preventDefault(); handleAction('clear'); }
+  });
+  document.getElementById('itemName').addEventListener('keydown', event => {
+    if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur(); }
+  });
+  buildRow(0);
+  updateTotals();
+  requestAnimationFrame(showSelected);
+})();
+</script>
+</body>
+</html>
